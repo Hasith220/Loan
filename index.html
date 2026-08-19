@@ -51,6 +51,37 @@
     border-color: #4a6cf7;
   }
 
+  /* Custom name dropdown */
+  .name-wrap {
+    position: relative;
+  }
+  .dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 160px;
+    overflow-y: auto;
+    display: none;
+    z-index: 10;
+  }
+  .dropdown-list div {
+    padding: 10px 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .dropdown-list div:hover,
+  .dropdown-list div.active {
+    background: #eef1ff;
+  }
+  .dropdown-list.show {
+    display: block;
+  }
+
   /* Keypad display */
   .loan-display {
     background: #f4f5f7;
@@ -114,9 +145,15 @@
     padding: 10px 12px;
     border-radius: 8px;
     display: none;
+    word-break: break-word;
   }
   .msg.ok { background: #e6f7ec; color: #1a7d3f; display: block; }
   .msg.err { background: #fdeaea; color: #b3261e; display: block; }
+  .status {
+    font-size: 11px;
+    color: #999;
+    margin-top: 6px;
+  }
 </style>
 </head>
 <body>
@@ -126,8 +163,11 @@
 
     <form id="loanForm">
       <label for="customerName">Customer Name</label>
-      <input type="text" id="customerName" list="nameList" required placeholder="e.g. Nimal Perera" autocomplete="off">
-      <datalist id="nameList"></datalist>
+      <div class="name-wrap">
+        <input type="text" id="customerName" required placeholder="e.g. Nimal Perera" autocomplete="off">
+        <div class="dropdown-list" id="dropdownList"></div>
+      </div>
+      <div class="status" id="namesStatus">Names loading...</div>
 
       <label>Loan Value (numbers × 100)</label>
       <div class="loan-display">
@@ -155,18 +195,20 @@
   </div>
 
   <script>
-    // ⚠️ Replace this with YOUR Google Apps Script Web App URL (see setup instructions)
-    const SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+    // ⚠️ Replace this with YOUR Google Apps Script Web App URL (must end in /exec)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnRE9SO57rxzGyRmZzXSsvD61B91xSlrd3l03mGGcUVbC7G8qSZvC0QUpL6JC0R9ctdA/exec";
 
     const form = document.getElementById('loanForm');
     const btn = document.getElementById('submitBtn');
     const msg = document.getElementById('msg');
     const bufferText = document.getElementById('bufferText');
     const valueText = document.getElementById('valueText');
-    const nameList = document.getElementById('nameList');
     const nameInput = document.getElementById('customerName');
+    const dropdownList = document.getElementById('dropdownList');
+    const namesStatus = document.getElementById('namesStatus');
 
     let buffer = '';
+    let allNames = [];
 
     function refreshDisplay() {
       const num = buffer === '' ? 0 : parseInt(buffer, 10);
@@ -178,7 +220,7 @@
     document.getElementById('keypad').addEventListener('click', function (e) {
       const target = e.target;
       if (target.dataset.digit !== undefined) {
-        if (buffer.length < 7) buffer += target.dataset.digit; // cap length
+        if (buffer.length < 7) buffer += target.dataset.digit;
         refreshDisplay();
       } else if (target.id === 'clearBtn') {
         buffer = '';
@@ -189,19 +231,53 @@
       }
     });
 
+    // --- Custom name dropdown ---
+    function renderDropdown(filter) {
+      const f = (filter || '').toLowerCase();
+      const matches = allNames.filter(function (n) {
+        return n.toLowerCase().indexOf(f) !== -1;
+      });
+      dropdownList.innerHTML = '';
+      if (matches.length === 0) {
+        dropdownList.classList.remove('show');
+        return;
+      }
+      matches.forEach(function (n) {
+        const item = document.createElement('div');
+        item.textContent = n;
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          nameInput.value = n;
+          dropdownList.classList.remove('show');
+        });
+        dropdownList.appendChild(item);
+      });
+      dropdownList.classList.add('show');
+    }
+
+    nameInput.addEventListener('focus', function () {
+      renderDropdown(nameInput.value);
+    });
+    nameInput.addEventListener('input', function () {
+      renderDropdown(nameInput.value);
+    });
+    nameInput.addEventListener('blur', function () {
+      setTimeout(function () { dropdownList.classList.remove('show'); }, 150);
+    });
+
     // Load existing customer names for the dropdown
     async function loadNames() {
+      if (SCRIPT_URL.indexOf('PASTE_YOUR') !== -1) {
+        namesStatus.textContent = 'SCRIPT_URL eka set karala na — code eke line eka check karanna.';
+        return;
+      }
       try {
         const res = await fetch(SCRIPT_URL + '?action=names');
         const data = await res.json();
-        nameList.innerHTML = '';
-        (data.names || []).forEach(function (n) {
-          const opt = document.createElement('option');
-          opt.value = n;
-          nameList.appendChild(opt);
-        });
+        allNames = data.names || [];
+        namesStatus.textContent = allNames.length + ' names loaded.';
       } catch (err) {
-        // Silent fail — dropdown just won't be populated yet
+        namesStatus.textContent = 'Names load karanna baa unaa: ' + err.message;
       }
     }
     loadNames();
@@ -219,11 +295,17 @@
         return;
       }
 
+      if (SCRIPT_URL.indexOf('PASTE_YOUR') !== -1) {
+        msg.textContent = 'SCRIPT_URL eka set karala na. Code eke Apps Script URL eka paste karanna.';
+        msg.className = 'msg err';
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = 'Submitting...';
 
       try {
-        await fetch(SCRIPT_URL, {
+        const res = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
@@ -232,15 +314,21 @@
             timestamp: new Date().toISOString()
           })
         });
+        const result = await res.json();
 
-        msg.textContent = 'Data eka save unaa!';
-        msg.className = 'msg ok';
-        form.reset();
-        buffer = '';
-        refreshDisplay();
-        loadNames(); // refresh dropdown in case a new name was added
+        if (result.result === 'success') {
+          msg.textContent = 'Data eka save unaa!';
+          msg.className = 'msg ok';
+          form.reset();
+          buffer = '';
+          refreshDisplay();
+          if (allNames.indexOf(name) === -1) allNames.push(name);
+        } else {
+          msg.textContent = 'Save wenna baa: ' + (result.error || 'Unknown error');
+          msg.className = 'msg err';
+        }
       } catch (err) {
-        msg.textContent = 'Save karanna baa unaa. Connection eka check karala try karanna.';
+        msg.textContent = 'Save karanna baa unaa: ' + err.message;
         msg.className = 'msg err';
       } finally {
         btn.disabled = false;
