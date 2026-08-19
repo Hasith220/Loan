@@ -39,7 +39,7 @@
     color: #333;
     margin: 16px 0 6px;
   }
-  input {
+  input[type="text"] {
     width: 100%;
     padding: 10px 12px;
     font-size: 15px;
@@ -50,14 +50,51 @@
   input:focus {
     border-color: #4a6cf7;
   }
-  .hint {
-    font-size: 12px;
-    color: #888;
-    margin-top: 4px;
+
+  /* Keypad display */
+  .loan-display {
+    background: #f4f5f7;
+    border-radius: 8px;
+    padding: 14px 12px;
+    text-align: right;
+    margin-bottom: 10px;
   }
-  button {
+  .loan-display .buffer {
+    font-size: 13px;
+    color: #888;
+  }
+  .loan-display .value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .keypad button {
+    padding: 14px 0;
+    font-size: 18px;
+    font-weight: 600;
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .keypad button:active {
+    background: #eef1ff;
+  }
+  .keypad button.action {
+    background: #f4f5f7;
+    color: #b3261e;
+    font-size: 14px;
+  }
+
+  button.submit {
     width: 100%;
-    margin-top: 24px;
+    margin-top: 20px;
     padding: 12px;
     background: #4a6cf7;
     color: #fff;
@@ -67,7 +104,7 @@
     border-radius: 8px;
     cursor: pointer;
   }
-  button:disabled {
+  button.submit:disabled {
     background: #a9b6f5;
     cursor: not-allowed;
   }
@@ -85,50 +122,86 @@
 <body>
   <div class="card">
     <h1>Customer Loan Entry</h1>
-    <p class="sub">Customer name saha loan value eka gahala submit karanna.</p>
+    <p class="sub">Name eka gahala, keypad eken loan value eka gahanna.</p>
 
     <form id="loanForm">
       <label for="customerName">Customer Name</label>
-      <input type="text" id="customerName" list="nameSuggestions" required placeholder="e.g. Nimal Perera" autocomplete="off">
-      <datalist id="nameSuggestions"></datalist>
-      <div class="hint" id="nameHint">Loading existing names...</div>
+      <input type="text" id="customerName" list="nameList" required placeholder="e.g. Nimal Perera" autocomplete="off">
+      <datalist id="nameList"></datalist>
 
-      <label for="loanValue">Loan Value (Rs.)</label>
-      <input type="number" id="loanValue" required min="0" step="0.01" placeholder="e.g. 150000">
+      <label>Loan Value (numbers × 100)</label>
+      <div class="loan-display">
+        <div class="buffer" id="bufferText">Enter: 0</div>
+        <div class="value" id="valueText">Rs. 0</div>
+      </div>
+      <div class="keypad" id="keypad">
+        <button type="button" data-digit="1">1</button>
+        <button type="button" data-digit="2">2</button>
+        <button type="button" data-digit="3">3</button>
+        <button type="button" data-digit="4">4</button>
+        <button type="button" data-digit="5">5</button>
+        <button type="button" data-digit="6">6</button>
+        <button type="button" data-digit="7">7</button>
+        <button type="button" data-digit="8">8</button>
+        <button type="button" data-digit="9">9</button>
+        <button type="button" class="action" id="clearBtn">Clear</button>
+        <button type="button" data-digit="0">0</button>
+        <button type="button" class="action" id="backBtn">⌫</button>
+      </div>
 
-      <button type="submit" id="submitBtn">Submit</button>
+      <button type="submit" class="submit" id="submitBtn">Submit</button>
       <div id="msg" class="msg"></div>
     </form>
   </div>
 
   <script>
     // ⚠️ Replace this with YOUR Google Apps Script Web App URL (see setup instructions)
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7ZLDm6eqRPsL4X2VN7cTQBMqRtTsZbYU9iBlQI1zGjcV3tQLEa4PNrw6xwysTUhbQSw/exec";
+    const SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
 
     const form = document.getElementById('loanForm');
     const btn = document.getElementById('submitBtn');
     const msg = document.getElementById('msg');
+    const bufferText = document.getElementById('bufferText');
+    const valueText = document.getElementById('valueText');
+    const nameList = document.getElementById('nameList');
     const nameInput = document.getElementById('customerName');
-    const nameList = document.getElementById('nameSuggestions');
-    const nameHint = document.getElementById('nameHint');
 
-    // Load existing customer names from the sheet for the dropdown suggestions
+    let buffer = '';
+
+    function refreshDisplay() {
+      const num = buffer === '' ? 0 : parseInt(buffer, 10);
+      const actual = num * 100;
+      bufferText.textContent = 'Enter: ' + (buffer === '' ? '0' : buffer);
+      valueText.textContent = 'Rs. ' + actual.toLocaleString();
+    }
+
+    document.getElementById('keypad').addEventListener('click', function (e) {
+      const target = e.target;
+      if (target.dataset.digit !== undefined) {
+        if (buffer.length < 7) buffer += target.dataset.digit; // cap length
+        refreshDisplay();
+      } else if (target.id === 'clearBtn') {
+        buffer = '';
+        refreshDisplay();
+      } else if (target.id === 'backBtn') {
+        buffer = buffer.slice(0, -1);
+        refreshDisplay();
+      }
+    });
+
+    // Load existing customer names for the dropdown
     async function loadNames() {
       try {
-        const res = await fetch(SCRIPT_URL);
+        const res = await fetch(SCRIPT_URL + '?action=names');
         const data = await res.json();
-        const names = (data.names || []).filter(Boolean);
         nameList.innerHTML = '';
-        names.forEach(n => {
+        (data.names || []).forEach(function (n) {
           const opt = document.createElement('option');
           opt.value = n;
           nameList.appendChild(opt);
         });
-        nameHint.textContent = names.length
-          ? 'Type karama pahala names walin match wei — nathnam alut namak type karanna.'
-          : 'Danata names naha — mekk thamai palamu ekaeya.';
       } catch (err) {
-        nameHint.textContent = 'Names load karanna baa unaa (SCRIPT_URL check karanna).';
+        // Silent fail — dropdown just won't be populated yet
       }
     }
     loadNames();
@@ -138,9 +211,9 @@
       msg.style.display = 'none';
 
       const name = nameInput.value.trim();
-      const loan = document.getElementById('loanValue').value.trim();
+      const loanValue = (buffer === '' ? 0 : parseInt(buffer, 10)) * 100;
 
-      if (!name || !loan) {
+      if (!name || loanValue <= 0) {
         msg.textContent = 'Customer name saha loan value dekama enter karanna.';
         msg.className = 'msg err';
         return;
@@ -155,7 +228,7 @@
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             customerName: name,
-            loanValue: loan,
+            loanValue: loanValue,
             timestamp: new Date().toISOString()
           })
         });
@@ -163,7 +236,9 @@
         msg.textContent = 'Data eka save unaa!';
         msg.className = 'msg ok';
         form.reset();
-        loadNames(); // refresh dropdown in case this was a new name
+        buffer = '';
+        refreshDisplay();
+        loadNames(); // refresh dropdown in case a new name was added
       } catch (err) {
         msg.textContent = 'Save karanna baa unaa. Connection eka check karala try karanna.';
         msg.className = 'msg err';
@@ -172,6 +247,8 @@
         btn.textContent = 'Submit';
       }
     });
+
+    refreshDisplay();
   </script>
 </body>
 </html>
