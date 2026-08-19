@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Loan Data Entry</title>
+<title>Loan Data Entry</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -180,11 +180,11 @@
 </head>
 <body>
   <div class="card">
-    <h1>Customer Loan Entry</h1>
-    <p class="sub">Name eka gahala, keypad eken loan value eka gahanna.</p>
+    <h1>Loan Entry</h1>
+    <p class="sub"></p>
 
     <form id="loanForm">
-      <label for="customerName">Customer Name</label>
+      <label for="customerName">Name</label>
       <div class="name-row">
         <div class="name-wrap">
           <input type="text" id="customerName" required placeholder="e.g. Nimal Perera" autocomplete="off">
@@ -194,7 +194,7 @@
       </div>
       <div class="status" id="namesStatus">Names loading...</div>
 
-      <label>Loan Value (numbers × 100)</label>
+      <label>Value (numbers × 100)</label>
       <div class="loan-display">
         <div class="buffer" id="bufferText">Enter: 0</div>
         <div class="value" id="valueText">Rs. 0</div>
