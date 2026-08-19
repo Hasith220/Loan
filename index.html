@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Loan Data Entry</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Sinhala", sans-serif;
+    background: #f4f5f7;
+    margin: 0;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 12px;
+    padding: 28px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+    color: #1a1a1a;
+  }
+  p.sub {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 24px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin: 16px 0 6px;
+  }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 15px;
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+    outline: none;
+  }
+  input:focus {
+    border-color: #4a6cf7;
+  }
+  .hint {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+  }
+  button {
+    width: 100%;
+    margin-top: 24px;
+    padding: 12px;
+    background: #4a6cf7;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:disabled {
+    background: #a9b6f5;
+    cursor: not-allowed;
+  }
+  .msg {
+    margin-top: 14px;
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: none;
+  }
+  .msg.ok { background: #e6f7ec; color: #1a7d3f; display: block; }
+  .msg.err { background: #fdeaea; color: #b3261e; display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Customer Loan Entry</h1>
+    <p class="sub">Customer name saha loan value eka gahala submit karanna.</p>
+
+    <form id="loanForm">
+      <label for="customerName">Customer Name</label>
+      <input type="text" id="customerName" list="nameSuggestions" required placeholder="e.g. Nimal Perera" autocomplete="off">
+      <datalist id="nameSuggestions"></datalist>
+      <div class="hint" id="nameHint">Loading existing names...</div>
+
+      <label for="loanValue">Loan Value (Rs.)</label>
+      <input type="number" id="loanValue" required min="0" step="0.01" placeholder="e.g. 150000">
+
+      <button type="submit" id="submitBtn">Submit</button>
+      <div id="msg" class="msg"></div>
+    </form>
+  </div>
+
+  <script>
+    // ⚠️ Replace this with YOUR Google Apps Script Web App URL (see setup instructions)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7ZLDm6eqRPsL4X2VN7cTQBMqRtTsZbYU9iBlQI1zGjcV3tQLEa4PNrw6xwysTUhbQSw/exec";
+
+    const form = document.getElementById('loanForm');
+    const btn = document.getElementById('submitBtn');
+    const msg = document.getElementById('msg');
+    const nameInput = document.getElementById('customerName');
+    const nameList = document.getElementById('nameSuggestions');
+    const nameHint = document.getElementById('nameHint');
+
+    // Load existing customer names from the sheet for the dropdown suggestions
+    async function loadNames() {
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        const names = (data.names || []).filter(Boolean);
+        nameList.innerHTML = '';
+        names.forEach(n => {
+          const opt = document.createElement('option');
+          opt.value = n;
+          nameList.appendChild(opt);
+        });
+        nameHint.textContent = names.length
+          ? 'Type karama pahala names walin match wei — nathnam alut namak type karanna.'
+          : 'Danata names naha — mekk thamai palamu ekaeya.';
+      } catch (err) {
+        nameHint.textContent = 'Names load karanna baa unaa (SCRIPT_URL check karanna).';
+      }
+    }
+    loadNames();
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      msg.style.display = 'none';
+
+      const name = nameInput.value.trim();
+      const loan = document.getElementById('loanValue').value.trim();
+
+      if (!name || !loan) {
+        msg.textContent = 'Customer name saha loan value dekama enter karanna.';
+        msg.className = 'msg err';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            customerName: name,
+            loanValue: loan,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        msg.textContent = 'Data eka save unaa!';
+        msg.className = 'msg ok';
+        form.reset();
+        loadNames(); // refresh dropdown in case this was a new name
+      } catch (err) {
+        msg.textContent = 'Save karanna baa unaa. Connection eka check karala try karanna.';
+        msg.className = 'msg err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    });
+  </script>
+</body>
+</html>
