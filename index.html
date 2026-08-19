@@ -52,8 +52,30 @@
   }
 
   /* Custom name dropdown */
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   .name-wrap {
     position: relative;
+    flex: 1;
+  }
+  .total-badge {
+    flex-shrink: 0;
+    background: #eef1ff;
+    color: #4a6cf7;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 78px;
+  }
+  .total-badge.new {
+    background: #f4f5f7;
+    color: #999;
   }
   .dropdown-list {
     position: absolute;
@@ -163,9 +185,12 @@
 
     <form id="loanForm">
       <label for="customerName">Customer Name</label>
-      <div class="name-wrap">
-        <input type="text" id="customerName" required placeholder="e.g. Nimal Perera" autocomplete="off">
-        <div class="dropdown-list" id="dropdownList"></div>
+      <div class="name-row">
+        <div class="name-wrap">
+          <input type="text" id="customerName" required placeholder="e.g. Nimal Perera" autocomplete="off">
+          <div class="dropdown-list" id="dropdownList"></div>
+        </div>
+        <div class="total-badge" id="totalBadge">Rs. 0</div>
       </div>
       <div class="status" id="namesStatus">Names loading...</div>
 
@@ -206,9 +231,22 @@
     const nameInput = document.getElementById('customerName');
     const dropdownList = document.getElementById('dropdownList');
     const namesStatus = document.getElementById('namesStatus');
+    const totalBadge = document.getElementById('totalBadge');
 
     let buffer = '';
     let allNames = [];
+    let allTotals = {};
+
+    function refreshTotalBadge() {
+      const name = nameInput.value.trim();
+      if (name && allTotals.hasOwnProperty(name)) {
+        totalBadge.textContent = 'Rs. ' + Number(allTotals[name]).toLocaleString();
+        totalBadge.classList.remove('new');
+      } else {
+        totalBadge.textContent = name ? 'New customer' : 'Rs. 0';
+        totalBadge.classList.add('new');
+      }
+    }
 
     function refreshDisplay() {
       const num = buffer === '' ? 0 : parseInt(buffer, 10);
@@ -249,6 +287,7 @@
           e.preventDefault();
           nameInput.value = n;
           dropdownList.classList.remove('show');
+          refreshTotalBadge();
         });
         dropdownList.appendChild(item);
       });
@@ -260,6 +299,7 @@
     });
     nameInput.addEventListener('input', function () {
       renderDropdown(nameInput.value);
+      refreshTotalBadge();
     });
     nameInput.addEventListener('blur', function () {
       setTimeout(function () { dropdownList.classList.remove('show'); }, 150);
@@ -275,7 +315,9 @@
         const res = await fetch(SCRIPT_URL + '?action=names');
         const data = await res.json();
         allNames = data.names || [];
+        allTotals = data.totals || {};
         namesStatus.textContent = allNames.length + ' names loaded.';
+        refreshTotalBadge();
       } catch (err) {
         namesStatus.textContent = 'Names load karanna baa unaa: ' + err.message;
       }
@@ -319,10 +361,12 @@
         if (result.result === 'success') {
           msg.textContent = 'Data eka save unaa!';
           msg.className = 'msg ok';
+          if (allNames.indexOf(name) === -1) allNames.push(name);
+          if (result.newTotal !== undefined) allTotals[name] = result.newTotal;
           form.reset();
           buffer = '';
           refreshDisplay();
-          if (allNames.indexOf(name) === -1) allNames.push(name);
+          refreshTotalBadge();
         } else {
           msg.textContent = 'Save wenna baa: ' + (result.error || 'Unknown error');
           msg.className = 'msg err';
@@ -337,6 +381,7 @@
     });
 
     refreshDisplay();
+    refreshTotalBadge();
   </script>
 </body>
 </html>
