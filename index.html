@@ -39,7 +39,7 @@
     color: #333;
     margin: 16px 0 6px;
   }
-  input[type="text"] {
+  input[type="text"], input[type="number"] {
     width: 100%;
     padding: 10px 12px;
     font-size: 15px;
@@ -49,6 +49,33 @@
   }
   input:focus {
     border-color: #4a6cf7;
+  }
+
+  /* Add / Reduce toggle */
+  .txn-toggle {
+    display: flex;
+    background: #f4f5f7;
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .txn-toggle button {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 700;
+    color: #666;
+    cursor: pointer;
+  }
+  .txn-toggle button.active[data-txn="add"] {
+    background: #e6f7ec;
+    color: #1a7d3f;
+  }
+  .txn-toggle button.active[data-txn="reduce"] {
+    background: #fdeaea;
+    color: #b3261e;
   }
 
   /* Custom name dropdown */
@@ -104,6 +131,42 @@
     display: block;
   }
 
+  /* Mode toggle (3-way) */
+  .mode-toggle {
+    display: flex;
+    background: #f4f5f7;
+    border-radius: 8px;
+    padding: 3px;
+    margin-top: 6px;
+    gap: 3px;
+  }
+  .mode-toggle button {
+    flex: 1;
+    padding: 8px 4px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 700;
+    color: #666;
+    cursor: pointer;
+  }
+  .mode-toggle button.active[data-mode="red"] {
+    background: #fdeaea;
+    color: #b3261e;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .mode-toggle button.active[data-mode="switch"] {
+    background: #eaf1fd;
+    color: #1a5db3;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .mode-toggle button.active[data-mode="manual"] {
+    background: #fff;
+    color: #4a6cf7;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+
   /* Keypad display */
   .loan-display {
     background: #f4f5f7;
@@ -111,6 +174,7 @@
     padding: 14px 12px;
     text-align: right;
     margin-bottom: 10px;
+    margin-top: 14px;
   }
   .loan-display .buffer {
     font-size: 13px;
@@ -145,11 +209,18 @@
     font-size: 14px;
   }
 
+  .manual-wrap {
+    margin-top: 14px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
   button.submit {
     width: 100%;
     margin-top: 20px;
     padding: 12px;
-    background: #4a6cf7;
     color: #fff;
     font-size: 15px;
     font-weight: 600;
@@ -157,8 +228,10 @@
     border-radius: 8px;
     cursor: pointer;
   }
+  button.submit.mode-add { background: #4a6cf7; }
+  button.submit.mode-reduce { background: #b3261e; }
   button.submit:disabled {
-    background: #a9b6f5;
+    background: #ccc;
     cursor: not-allowed;
   }
   .msg {
@@ -184,6 +257,11 @@
     <p class="sub"></p>
 
     <form id="loanForm">
+      <div class="txn-toggle" id="txnToggle">
+        <button type="button" data-txn="add" class="active">+ Add Loan</button>
+        <button type="button" data-txn="reduce">− Reduce Loan</button>
+      </div>
+
       <label for="customerName">Name</label>
       <div class="name-row">
         <div class="name-wrap">
@@ -194,27 +272,39 @@
       </div>
       <div class="status" id="namesStatus">Names loading...</div>
 
-      <label>Value (numbers × 100)</label>
-      <div class="loan-display">
-        <div class="buffer" id="bufferText">Enter: 0</div>
-        <div class="value" id="valueText">Rs. 0</div>
-      </div>
-      <div class="keypad" id="keypad">
-        <button type="button" data-digit="1">1</button>
-        <button type="button" data-digit="2">2</button>
-        <button type="button" data-digit="3">3</button>
-        <button type="button" data-digit="4">4</button>
-        <button type="button" data-digit="5">5</button>
-        <button type="button" data-digit="6">6</button>
-        <button type="button" data-digit="7">7</button>
-        <button type="button" data-digit="8">8</button>
-        <button type="button" data-digit="9">9</button>
-        <button type="button" class="action" id="clearBtn">Clear</button>
-        <button type="button" data-digit="0">0</button>
-        <button type="button" class="action" id="backBtn">⌫</button>
+      <label>Value</label>
+      <div class="mode-toggle">
+        <button type="button" data-mode="red" class="active">Red (×100)</button>
+        <button type="button" data-mode="switch">Switch (×120)</button>
+        <button type="button" data-mode="manual">Manual</button>
       </div>
 
-      <button type="submit" class="submit" id="submitBtn">Submit</button>
+      <div id="keypadSection">
+        <div class="loan-display">
+          <div class="buffer" id="bufferText">Enter: 0</div>
+          <div class="value" id="valueText">Rs. 0</div>
+        </div>
+        <div class="keypad" id="keypad">
+          <button type="button" data-digit="1">1</button>
+          <button type="button" data-digit="2">2</button>
+          <button type="button" data-digit="3">3</button>
+          <button type="button" data-digit="4">4</button>
+          <button type="button" data-digit="5">5</button>
+          <button type="button" data-digit="6">6</button>
+          <button type="button" data-digit="7">7</button>
+          <button type="button" data-digit="8">8</button>
+          <button type="button" data-digit="9">9</button>
+          <button type="button" class="action" id="clearBtn">Clear</button>
+          <button type="button" data-digit="0">0</button>
+          <button type="button" class="action" id="backBtn">⌫</button>
+        </div>
+      </div>
+
+      <div id="manualSection" class="manual-wrap hidden">
+        <input type="number" id="manualValue" min="0" step="0.01" placeholder="Loan value gahanna (e.g. 15500)">
+      </div>
+
+      <button type="submit" class="submit mode-add" id="submitBtn">Submit</button>
       <div id="msg" class="msg"></div>
     </form>
   </div>
@@ -232,10 +322,57 @@
     const dropdownList = document.getElementById('dropdownList');
     const namesStatus = document.getElementById('namesStatus');
     const totalBadge = document.getElementById('totalBadge');
+    const txnToggle = document.getElementById('txnToggle');
+    const modeToggle = document.querySelector('.mode-toggle');
+    const keypadSection = document.getElementById('keypadSection');
+    const manualSection = document.getElementById('manualSection');
+    const manualValue = document.getElementById('manualValue');
 
     let buffer = '';
     let allNames = [];
     let allTotals = {};
+    let mode = 'red';       // 'red' (x100) | 'switch' (x120) | 'manual'
+    let txnType = 'add';    // 'add' | 'reduce'
+
+    const MULTIPLIERS = { red: 100, switch: 120 };
+
+    // --- Add / Reduce toggle ---
+    txnToggle.addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-txn]');
+      if (!b) return;
+      txnType = b.dataset.txn;
+      txnToggle.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      btn.classList.remove('mode-add', 'mode-reduce');
+      btn.classList.add(txnType === 'add' ? 'mode-add' : 'mode-reduce');
+      btn.textContent = txnType === 'add' ? 'Submit (Add Loan)' : 'Submit (Reduce Loan)';
+    });
+
+    // --- Value mode toggle (Red / Switch / Manual) ---
+    modeToggle.addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-mode]');
+      if (!b) return;
+      mode = b.dataset.mode;
+      modeToggle.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      if (mode === 'manual') {
+        keypadSection.classList.add('hidden');
+        manualSection.classList.remove('hidden');
+      } else {
+        keypadSection.classList.remove('hidden');
+        manualSection.classList.add('hidden');
+        refreshDisplay();
+      }
+    });
+
+    function getLoanValue() {
+      if (mode === 'manual') {
+        const v = parseFloat(manualValue.value);
+        return isNaN(v) ? 0 : v;
+      }
+      const num = buffer === '' ? 0 : parseInt(buffer, 10);
+      return num * MULTIPLIERS[mode];
+    }
 
     function refreshTotalBadge() {
       const name = nameInput.value.trim();
@@ -250,8 +387,9 @@
 
     function refreshDisplay() {
       const num = buffer === '' ? 0 : parseInt(buffer, 10);
-      const actual = num * 100;
-      bufferText.textContent = 'Enter: ' + (buffer === '' ? '0' : buffer);
+      const multiplier = MULTIPLIERS[mode] || 100;
+      const actual = num * multiplier;
+      bufferText.textContent = 'Enter: ' + (buffer === '' ? '0' : buffer) + ' × ' + multiplier;
       valueText.textContent = 'Rs. ' + actual.toLocaleString();
     }
 
@@ -329,10 +467,10 @@
       msg.style.display = 'none';
 
       const name = nameInput.value.trim();
-      const loanValue = (buffer === '' ? 0 : parseInt(buffer, 10)) * 100;
+      let loanValue = getLoanValue();
 
       if (!name || loanValue <= 0) {
-        msg.textContent = 'Customer name saha loan value dekama enter karanna.';
+        msg.textContent = 'Customer name saha value dekama enter karanna.';
         msg.className = 'msg err';
         return;
       }
@@ -343,6 +481,10 @@
         return;
       }
 
+      // Reduce mode sends a negative value so it subtracts from the running total
+      const sentValue = txnType === 'reduce' ? -loanValue : loanValue;
+      const typeLabel = mode === 'red' ? 'Red' : (mode === 'switch' ? 'Switch' : 'Manual');
+
       btn.disabled = true;
       btn.textContent = 'Submitting...';
 
@@ -352,7 +494,9 @@
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             customerName: name,
-            loanValue: loanValue,
+            loanValue: sentValue,
+            type: typeLabel,
+            transaction: txnType,
             timestamp: new Date().toISOString()
           })
         });
@@ -376,7 +520,7 @@
         msg.className = 'msg err';
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Submit';
+        btn.textContent = txnType === 'add' ? 'Submit (Add Loan)' : 'Submit (Reduce Loan)';
       }
     });
 
